@@ -4,8 +4,8 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: greencity
     ports:
       - "5432:5432"
@@ -14,12 +14,12 @@ services:
     image: greencity-backuser:local
     environment:
       - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
-      - DATASOURCE_USER=postgres
-      - DATASOURCE_PASSWORD=root
-      - AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=dummy;AccountKey=dummy;EndpointSuffix=core.windows.net
-      - AZURE_CONTAINER_NAME=greencity
-      - EMAIL_ADDRESS=dummy@example.com
-      - PASSWORD_FROM_GMAIL=dummy1234
+      - DATASOURCE_USER=${POSTGRES_USER}
+      - DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - AZURE_CONNECTION_STRING=${AZURE_CONNECTION_STRING}
+      - AZURE_CONTAINER_NAME=${AZURE_CONTAINER_NAME}
+      - EMAIL_ADDRESS=${EMAIL_ADDRESS}
+      - PASSWORD_FROM_GMAIL=${PASSWORD_FROM_GMAIL}
     ports:
       - "8060:8060"
     depends_on:
@@ -29,10 +29,10 @@ services:
     image: greencity-backcore:local
     environment:
       - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
-      - DATASOURCE_USER=postgres
-      - DATASOURCE_PASSWORD=root
-      - AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=dummy;AccountKey=dummy;EndpointSuffix=core.windows.net
-      - AZURE_CONTAINER_NAME=greencity
+      - DATASOURCE_USER=${POSTGRES_USER}
+      - DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - AZURE_CONNECTION_STRING=${AZURE_CONNECTION_STRING}
+      - AZURE_CONTAINER_NAME=${AZURE_CONTAINER_NAME}
     ports:
       - "8080:8080"
     depends_on:
