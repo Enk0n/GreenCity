@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: greencity
+    ports:
+      - "5432:5432"
+
+  backuser:
+    image: greencity-backuser:local
+    environment:
+      - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
+      - DATASOURCE_USER=postgres
+      - DATASOURCE_PASSWORD=root
+      - AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=dummy;AccountKey=dummy;EndpointSuffix=core.windows.net
+      - AZURE_CONTAINER_NAME=greencity
+      - EMAIL_ADDRESS=dummy@example.com
+      - PASSWORD_FROM_GMAIL=dummy1234
+    ports:
+      - "8060:8060"
+    depends_on:
+      - db
+
+  backcore:
+    image: greencity-backcore:local
+    environment:
+      - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
+      - DATASOURCE_USER=postgres
+      - DATASOURCE_PASSWORD=root
+      - AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=dummy;AccountKey=dummy;EndpointSuffix=core.windows.net
+      - AZURE_CONTAINER_NAME=greencity
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  frontend:
+    image: greencity-frontend:local
+    ports:
+      - "80:80"
+    depends_on:
+      - backcore
+      - backuser
