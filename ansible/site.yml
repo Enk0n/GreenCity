@@ -1,0 +1,19 @@
+---
+- name: Base OS Configuration (All nodes)
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: Setup Database Server (greencity-db)
+  hosts: db_servers
+  become: true
+  roles:
+    - postgresql
+
+- name: Setup Application Server (greencity-app)
+  hosts: app_servers
+  become: true
+  roles:
+    - docker
+    - app

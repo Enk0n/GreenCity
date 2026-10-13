@@ -1,0 +1,12 @@
+---
+app_repo_url: "https://github.com/Enk0n/GreenCity.git"
+app_repo_branch: "docker-dockercompose"
+app_dest_dir: "/home/{{ ansible_user }}/GreenCity"
+
+app_http_ports:
+  - "80/tcp"
+  - "8080/tcp"
+
+datasource_url: "jdbc:postgresql://192.168.0.134:5432/greencity"
+datasource_user: "greencity"
+datasource_password: "greencity_pass"

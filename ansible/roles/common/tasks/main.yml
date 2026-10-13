@@ -1,0 +1,11 @@
+---
+- name: Set SELinux to permissive mode
+  selinux:
+    policy: targeted
+    state: "{{ selinux_mode }}"
+
+- name: Ensure firewalld is running and enabled
+  service:
+    name: firewalld
+    state: started
+    enabled: true

@@ -1,0 +1,38 @@
+---
+- name: Open HTTP ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ app_http_ports }}"
+
+- name: Ensure application directory has correct ownership
+  file:
+    path: "{{ app_dest_dir }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    state: directory
+    recurse: true
+
+- name: Clone GreenCity repository
+  git:
+    repo: "{{ app_repo_url }}"
+    dest: "{{ app_dest_dir }}"
+    version: "{{ app_repo_branch }}"
+    force: true
+  become_user: "{{ ansible_user }}"
+
+- name: Generate .env file from template
+  template:
+    src: env.j2
+    dest: "{{ app_dest_dir }}/app/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Build and run Docker Compose application
+  command: docker compose up -d --build
+  args:
+    chdir: "{{ app_dest_dir }}/app"
+  become_user: "{{ ansible_user }}"

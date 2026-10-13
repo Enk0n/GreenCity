@@ -1,0 +1,6 @@
+---
+db_name: greencity
+db_user: greencity
+db_pass: greencity_pass
+db_port: 5432
+listen_addresses: "*"

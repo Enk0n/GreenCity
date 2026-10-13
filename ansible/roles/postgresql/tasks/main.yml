@@ -1,0 +1,62 @@
+---
+- name: Install PostgreSQL server and client libraries
+  dnf:
+    name:
+      - postgresql-server
+      - postgresql-contrib
+      - python3-psycopg2
+    state: present
+
+- name: Check if PostgreSQL database is already initialized
+  stat:
+    path: /var/lib/pgsql/data/PG_VERSION
+  register: pg_data
+
+- name: Initialize PostgreSQL database
+  command: postgresql-setup --initdb
+  when: not pg_data.stat.exists
+
+- name: Enable and start PostgreSQL service
+  service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Configure postgresql.conf to listen on all interfaces
+  lineinfile:
+    path: /var/lib/pgsql/data/postgresql.conf
+    regexp: "^#?listen_addresses\\s*="
+    line: "listen_addresses = '{{ listen_addresses }}'"
+  notify: restart postgresql
+
+- name: Deploy pg_hba.conf configuration
+  template:
+    src: pg_hba.conf.j2
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  notify: restart postgresql
+
+- name: Flush handlers to apply config changes
+  meta: flush_handlers
+
+- name: Open PostgreSQL port in firewalld
+  firewalld:
+    port: "{{ db_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+- name: Create GreenCity database
+  postgresql_db:
+    name: "{{ db_name }}"
+    login_user: postgres
+  become_user: postgres
+
+- name: Create GreenCity database user
+  postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    login_user: postgres
+  become_user: postgres
