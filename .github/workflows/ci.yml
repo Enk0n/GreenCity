@@ -1,4 +1,4 @@
-cat << 'EOF' > .github/workflows/ci.yml
+cat << 'EOF' > /mnt/c/GreenCity/.github/workflows/ci.yml
 name: GreenCity CI Pipeline
 
 on:
