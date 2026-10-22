@@ -45,7 +45,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_REF: refs/heads/main
+          GITHUB_REF_NAME: main
         run: |
+          git checkout -B main
           cd app/greencity-backcore
           mvn -B compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -DskipTests \
