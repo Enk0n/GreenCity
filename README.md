@@ -1,194 +1,139 @@
-# GreenCity Infrastructure Automation (Ansible)
+# Step-by-Step Guide: Implementing CI/CD with GitHub Actions and Self-Hosted Runners
 
-Automated provisioning and multi-tier deployment of the **GreenCity** platform across Oracle Linux 9.8 virtual machines using modular Ansible roles.
-
----
-
-## 1. Architecture Overview
-
-The infrastructure decouples the persistence layer from the application container runtime:
-
-* **Database Tier (`greencity-db`)**: Dedicated VM running standalone PostgreSQL 15, bound to local network interfaces with configured firewall and client authentication.
-* **Application Tier (`greencity-app`)**: Dedicated VM running Docker Engine and Docker Compose, pulling the application repository, injecting `.env` configurations, and serving HTTP traffic.
-
-### Target Node Topology
-
-| Hostname | Role | OS | IP Address / Interface | Ports |
-| :--- | :--- | :--- | :--- | :--- |
-| `greencity-db` | Database Server | Oracle Linux 9.8 | Static (`192.168.0.134`) | `5432/tcp` |
-| `greencity-app` | Application Server | Oracle Linux 9.8 | Dynamic / DHCP (`192.168.0.228`) | `80/tcp`, `8080/tcp` |
+This guide details the steps taken to configure automated builds, GHCR publishing, and deployment to an Oracle Linux virtual machine for the GreenCity project.
 
 ---
 
-## 2. Directory Structure
+## Step 1: Prepare the Target Environment
 
-The Ansible codebase follows the standard role-based layout:
-
-```text
-ansible/
-├── ansible.cfg                # Engine configurations & connection parameters
-├── inventory.ini              # Host grouping and per-node variables
-├── site.yml                   # Master orchestration playbook
-├── group_vars/
-│   ├── all.yml                # Universal configurations (SELinux mode)
-│   ├── db_servers.yml         # PostgreSQL ports, credentials, network bindings
-│   └── app_servers.yml        # Git branch, repo URL, paths, exposed HTTP ports
-└── roles/
-    ├── common/                # OS-level baseline (SELinux, firewalld)
-    │   └── tasks/main.yml
-    ├── postgresql/            # DB installation, templates, handlers, user/db creation
-    │   ├── tasks/main.yml
-    │   ├── handlers/main.yml
-    │   └── templates/
-    │       └── pg_hba.conf.j2
-    ├── docker/                # Official Docker CE repo setup & engine installation
-    │   └── tasks/main.yml
-    └── app/                   # Code checkout, .env templating, compose execution
-        ├── tasks/main.yml
-        └── templates/
-            └── env.j2
-```
-
----
-
-## 3. Prerequisites
-
-* **Control Node**:
-  * Linux / WSL environment.
-  * Ansible core installed (`ansible >= 2.14`).
-  * Python 3 and `sshpass` (for password-based authentication).
-* **Managed Nodes**:
-  * 2x Oracle Linux 9.8 instances reachable via SSH.
-  * Sudo/root access enabled for the management users.
-
----
-
-## 4. Configuration Setup
-
-### Step 1: Inventory Definition (`inventory.ini`)
-
-Assign hostnames, target IP addresses, and SSH users to respective groups:
-
-```ini
-[db_servers]
-greencity-db ansible_host=192.168.0.134 ansible_user=greencity-db
-
-[app_servers]
-greencity-app ansible_host=192.168.0.228 ansible_user=greencity-app
-
-[all:vars]
-ansible_python_interpreter=/usr/bin/python3
-ansible_become=yes
-```
-
-### Step 2: Parameterization (`group_vars/`)
-
-* **`group_vars/all.yml`**:
-  ```yaml
-  ---
-  selinux_mode: permissive
-  ```
-
-* **`group_vars/db_servers.yml`**:
-  ```yaml
-  ---
-  db_name: "greencity"
-  db_user: "greencity"
-  db_pass: "greencity_pass"
-  db_port: 5432
-  listen_addresses: "*"
-  ```
-
-* **`group_vars/app_servers.yml`**:
-  ```yaml
-  ---
-  app_repo_url: "https://github.com/Enk0n/GreenCity.git"
-  app_repo_branch: "docker-dockercompose"
-  app_dest_dir: "/home/{{ ansible_user }}/GreenCity"
-
-  app_http_ports:
-    - "80/tcp"
-    - "8080/tcp"
-
-  datasource_url: "jdbc:postgresql://192.168.0.134:5432/greencity"
-  datasource_user: "greencity"
-  datasource_password: "greencity_pass"
-  ```
-
----
-
-## 5. Deployment Execution
-
-### Step 1: Verify Host Reachability
-
-Test connection and authentication to all nodes:
-
-```bash
-ansible all -i inventory.ini -m ping --ask-pass --ask-become-pass
-```
-
-### Step 2: Execute Syntax Validation
-
-Ensure all YAML tasks, handlers, and templates parse correctly:
-
-```bash
-ansible-playbook -i inventory.ini site.yml --syntax-check
-```
-
-### Step 3: Run Orchestration Playbook
-
-Deploy the complete infrastructure stack:
-
-```bash
-ansible-playbook -i inventory.ini site.yml --ask-pass --ask-become-pass
-```
-
----
-
-## 6. Role Breakdown
-
-1. **`common`**:
-   * Sets SELinux to `permissive` mode to avoid unconfined container and socket blocking.
-   * Enables and activates `firewalld`.
-
-2. **`postgresql`**:
-   * Installs PostgreSQL 15 and `python3-psycopg2` module dependencies.
-   * Initializes cluster data directory on initial run.
-   * Sets `listen_addresses = '*'` in `postgresql.conf`.
-   * Deploys `pg_hba.conf` template granting `md5` remote network access.
-   * Opens firewall port `5432/tcp`.
-   * Creates the `greencity` database and dedicated application credentials.
-
-3. **`docker`**:
-   * Registers upstream Docker CE repository on RHEL/CentOS family.
-   * Installs Docker Engine, CLI, Containerd, and Compose plugins.
-   * Ensures the system service is active and appends the operational user to the `docker` security group.
-
-4. **`app`**:
-   * Opens inbound firewall ports `80/tcp` and `8080/tcp`.
-   * Enforces recursive file ownership on destination paths.
-   * Pulls the repository from the target branch.
-   * Dynamically renders the application `.env` file via Jinja2 (`env.j2`).
-   * Executes `docker compose up -d --build` non-interactively.
-
----
-
-## 7. Verification & Testing
-
-Verify end-to-end functionality following deployment:
-
-1. **Database Listener Check**:
+1. **Synchronize VM Time:**
+   Ensure the target VM has the correct time to avoid SSL certificate errors during runner registration:
    ```bash
-   nc -zv 192.168.0.134 5432
+   sudo systemctl restart chronyd
+   sudo chronyc makestep
+   date
    ```
 
-2. **Container State**:
+2. **Docker Permissions:**
+   Ensure the user running the GitHub Action has passwordless Docker access:
    ```bash
-   ssh greencity-app@192.168.0.228 "docker compose -f /home/greencity-app/GreenCity/app/docker-compose.yml ps"
+   sudo usermod -aG docker $USER
+   newgrp docker
    ```
 
-3. **HTTP Web Interface**:
+---
+
+## Step 2: Install and Configure GitHub Self-Hosted Runner
+
+1. In the GitHub repository, navigate to **Settings** -> **Actions** -> **Runners** -> **New self-hosted runner**.
+2. Download and extract the runner software on the VM:
    ```bash
-   curl -I [http://192.168.0.228](http://192.168.0.228)
+   mkdir actions-runner && cd actions-runner
+   curl -o actions-runner-linux-x64-2.329.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.329.0/actions-runner-linux-x64-2.329.0.tar.gz
+   tar xzf ./actions-runner-linux-x64-2.329.0.tar.gz
    ```
-   *Expected Response:* `HTTP/1.1 200 OK` (or reverse proxy redirection).
+3. Authenticate using the token provided by GitHub:
+   ```bash
+   ./config.sh --url https://github.com/YOUR_ORG/GreenCity --token YOUR_TOKEN
+   ```
+4. Install and start the runner as a background systemd service:
+   ```bash
+   sudo ./svc.sh install
+   sudo ./svc.sh start
+   ```
+
+---
+
+## Step 3: Configure GitHub Actions Workflow
+
+Create `.github/workflows/ci.yml` in your repository. This file uses a build matrix to parallelize image builds and a dependent job for deployment.
+
+```yaml
+name: GreenCity CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "ci-cd" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: backcore
+            context: ./app/greencity-backcore
+            image_name: greencity-backcore
+          - service: backuser
+            context: ./app/greencity-backuser
+            image_name: greencity-backuser
+          - service: frontend
+            context: ./app/greencity-frontend
+            image_name: greencity-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_name }}
+          tags: type=raw,value=latest
+      - uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cd app
+          docker compose pull
+          docker compose up -d --remove-orphans
+          docker image prune -f
+```
+
+---
+
+## Step 4: Update Docker Compose Topology
+
+Modify `app/docker-compose.yml` to point to the newly published GHCR images instead of building locally:
+
+```yaml
+services:
+  backuser:
+    image: ghcr.io/YOUR_GITHUB_USER/greencity-backuser:latest
+    ...
+  backcore1:
+    image: ghcr.io/YOUR_GITHUB_USER/greencity-backcore:latest
+    ...
+  frontend:
+    image: ghcr.io/YOUR_GITHUB_USER/greencity-frontend:latest
+    ...
+```
+
+---
+
+## Step 5: Registry Visibility & Validation
+
+1. Navigate to **Packages** on your GitHub profile.
+2. For each published package (`greencity-backcore`, `greencity-backuser`, `greencity-frontend`), go to **Package Settings**.
+3. Under **Danger Zone**, change visibility to **Public** to allow the target VM to pull images without requiring a Personal Access Token (PAT).
+4. Monitor the **Actions** tab on GitHub to verify successful end-to-end execution of both CI and CD jobs.
