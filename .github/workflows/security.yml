@@ -11,7 +11,9 @@ on:
   workflow_dispatch:
 
 jobs:
-
+  # -------------------------------------------------------------
+  # Job 1: Snyk SCA (Dependency Scanning)
+  # -------------------------------------------------------------
   snyk-sca:
     name: Snyk Dependency Scan
     runs-on: ubuntu-latest
@@ -39,7 +41,8 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           cd app/greencity-backcore
-          snyk test --severity-threshold=high
+          chmod +x mvnw || true
+          snyk test --command=mvn --severity-threshold=high
 
       - name: Snyk test Frontend dependencies
         continue-on-error: true
@@ -47,9 +50,11 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           cd app/greencity-frontend
-          snyk test --severity-threshold=high
+          snyk test --strict-out-of-sync=false --severity-threshold=high
 
-  
+  # -------------------------------------------------------------
+  # Job 2: Trivy Container Image Scan
+  # -------------------------------------------------------------
   trivy-image-scan:
     name: Trivy Container Image Scan
     runs-on: ubuntu-latest
