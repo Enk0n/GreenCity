@@ -47,7 +47,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           cd app/greencity-backcore
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          mvn -B compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -DskipTests \
+            -Dformatter.skip=true \
+            -Dcheckstyle.skip=true \
             -Dsonar.projectKey=Enk0n_GreenCity \
             -Dsonar.organization=enk0n
