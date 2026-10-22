@@ -67,3 +67,27 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to greencity-app VM
+    needs: build-and-push
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/ci-cd' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Pull latest Docker images from GHCR
+        run: |
+          cd app
+          docker compose pull
+
+      - name: Recreate containers with updated images
+        run: |
+          cd app
+          docker compose up -d --remove-orphans
+
+      - name: Prune dangling images
+        run: |
+          docker image prune -f

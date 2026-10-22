@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-greencity}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-greencity_pass}
+      POSTGRES_DB: greencity
+    ports:
+      - "5432:5432"
+
+  backuser:
+    image: ghcr.io/enk0n/greencity-backuser:latest
+    environment:
+      - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
+      - DATASOURCE_USER=${POSTGRES_USER:-greencity}
+      - DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-greencity_pass}
+      - AZURE_CONNECTION_STRING=${AZURE_CONNECTION_STRING:-dummy}
+      - AZURE_CONTAINER_NAME=${AZURE_CONTAINER_NAME:-dummy}
+      - EMAIL_ADDRESS=${EMAIL_ADDRESS:-dummy@example.com}
+      - PASSWORD_FROM_GMAIL=${PASSWORD_FROM_GMAIL:-dummy}
+    ports:
+      - "8060:8060"
+    depends_on:
+      - db
+
+  backcore1:
+    image: ghcr.io/enk0n/greencity-backcore:latest
+    environment:
+      - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
+      - DATASOURCE_USER=${POSTGRES_USER:-greencity}
+      - DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-greencity_pass}
+      - AZURE_CONNECTION_STRING=${AZURE_CONNECTION_STRING:-dummy}
+      - AZURE_CONTAINER_NAME=${AZURE_CONTAINER_NAME:-dummy}
+    depends_on:
+      - db
+
+  backcore2:
+    image: ghcr.io/enk0n/greencity-backcore:latest
+    environment:
+      - DATASOURCE_URL=jdbc:postgresql://db:5432/greencity
+      - DATASOURCE_USER=${POSTGRES_USER:-greencity}
+      - DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-greencity_pass}
+      - AZURE_CONNECTION_STRING=${AZURE_CONNECTION_STRING:-dummy}
+      - AZURE_CONTAINER_NAME=${AZURE_CONTAINER_NAME:-dummy}
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:alpine
+    container_name: greencity-loadbalancer
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backcore1
+      - backcore2
+
+  frontend:
+    image: ghcr.io/enk0n/greencity-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backcore1
+      - backcore2
+      - backuser
