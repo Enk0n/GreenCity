@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 
 jobs:
+
   snyk-sca:
     name: Snyk Dependency Scan
     runs-on: ubuntu-latest
@@ -24,27 +25,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Run Snyk to check Backcore dependencies
-        uses: snyk/actions/maven@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --file=app/greencity-backcore/pom.xml --severity-threshold=high
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Run Snyk to check Frontend dependencies
-        uses: snyk/actions/node@master
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
+
+      - name: Snyk test Backcore dependencies
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --file=app/greencity-frontend/package.json --severity-threshold=high
+        run: |
+          cd app/greencity-backcore
+          snyk test --severity-threshold=high
 
+      - name: Snyk test Frontend dependencies
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          cd app/greencity-frontend
+          snyk test --severity-threshold=high
+
+  
   trivy-image-scan:
     name: Trivy Container Image Scan
     runs-on: ubuntu-latest
