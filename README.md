@@ -1,6 +1,6 @@
 # Step-by-Step Guide: Configuring Continuous Code Inspection (SonarCloud) for GreenCity
 
-This technical guide outlines the process of integrating the **SonarCloud** quality and security code analyzer into the GreenCity repository using **GitHub Actions**. It covers resolving Maven compilation conflicts and configuring the analysis to bypass SonarCloud's free-tier branch restrictions, fulfilling the requirements for the CCI task (Trello card #17)[cite: 1].
+This technical guide outlines the process of integrating the **SonarCloud** quality and security code analyzer into the GreenCity repository using **GitHub Actions**. It covers resolving Maven compilation conflicts and configuring the analysis to bypass SonarCloud's free-tier branch restrictions, fulfilling the requirements for the CCI task (Trello card #17).
 
 ---
 
@@ -20,11 +20,11 @@ git checkout -b cci-sonarqube
 1. Log in to [sonarcloud.io](https://sonarcloud.io/) using your GitHub account (`Enk0n`).
 2. Click the **`+`** icon (top right corner) → **Analyze new project**.
 3. Select the **`GreenCity`** repository and click **Set Up**.
-4. In the **Set up new code for project** window, select the **`Previous version`** option and click **Create project**[cite: 10].
+4. In the **Set up new code for project** window, select the **`Previous version`** option and click **Create project**.
 5. Proceed to the **With GitHub Actions** tutorial:
-   * In the **1 Create a GitHub Secret** section, generate a token and copy it[cite: 11].
-   * In the **2 Create or update a build file** section, click the **`Maven`** tab[cite: 11].
-   * Note the project parameters provided[cite: 11]:
+   * In the **1 Create a GitHub Secret** section, generate a token and copy it.
+   * In the **2 Create or update a build file** section, click the **`Maven`** tab.
+   * Note the project parameters provided:
      * Organization: `enk0n`
      * Project Key: `Enk0n_GreenCity`
 
@@ -34,7 +34,7 @@ git checkout -b cci-sonarqube
 
 1. Open your GitHub repository: **Settings** → **Secrets and variables** → **Actions**.
 2. Click **New repository secret**.
-3. Create the secret[cite: 11]:
+3. Create the secret:
    * **Name:** `SONAR_TOKEN`
    * **Secret:** Paste the token copied from SonarCloud.
 4. Click **Add secret**.
@@ -125,8 +125,8 @@ git checkout -b cci-sonarqube
 
 ### 2. SonarCloud Free-Tier Report Blocking
 * **Symptom:**
-  SonarCloud demands a paid subscription to view analysis for secondary branches (`Branches`)[cite: 12] and displays the warning: `'main' branch has not been analyzed yet`[cite: 12].
-* **Root Cause:** The SonarCloud free plan provides full dashboard access exclusively for the `main` branch[cite: 12].
+  SonarCloud demands a paid subscription to view analysis for secondary branches (`Branches`) and displays the warning: `'main' branch has not been analyzed yet`.
+* **Root Cause:** The SonarCloud free plan provides full dashboard access exclusively for the `main` branch.
 * **Resolution:** Without performing a Git merge, a context spoofing command was added inside the runner's build container:
   ```bash
   git checkout -B main
@@ -156,9 +156,9 @@ git checkout -b cci-sonarqube
 Upon successful job completion, navigate to the project dashboard:  
 👉 `https://sonarcloud.io/project/overview?id=Enk0n_GreenCity`
 
-### Recorded Metrics for GreenCity Backcore[cite: 13]:
-* **Security:** 13 vulnerabilities (Rating E)[cite: 13].
-* **Reliability:** 26 bugs (Rating C)[cite: 13].
-* **Maintainability:** 265 Code Smells (Rating A)[cite: 13].
-* **Duplications:** 0.2% duplication across 26,000 lines of code[cite: 13].
-* **Security Hotspots:** 0[cite: 13].
+### Recorded Metrics for GreenCity Backcore:
+* **Security:** 13 vulnerabilities (Rating E).
+* **Reliability:** 26 bugs (Rating C).
+* **Maintainability:** 265 Code Smells (Rating A).
+* **Duplications:** 0.2% duplication across 26,000 lines of code.
+* **Security Hotspots:** 0.
