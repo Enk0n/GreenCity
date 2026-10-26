@@ -1,0 +1,76 @@
+services:
+  # OpenTelemetry Collector Contrib
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: greencity-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8889:8889"   # Prometheus exporter endpoint
+    networks:
+      - monitoring-net
+
+  # Prometheus TSDB
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: greencity-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring-net
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:10.3.3
+    container_name: greencity-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring-net
+
+  # Splunk Enterprise
+  splunk:
+    image: splunk/splunk:latest
+    container_name: greencity-splunk
+    restart: unless-stopped
+    environment:
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=DevOpsPass123!
+      - SPLUNK_HEC_TOKEN=00000000-0000-0000-0000-000000000000
+    ports:
+      - "8000:8000"   # Splunk Web UI
+      - "8088:8088"   # Splunk HEC (HTTP Event Collector)
+    volumes:
+      - splunk_data:/opt/splunk/var
+    networks:
+      - monitoring-net
+
+networks:
+  monitoring-net:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  splunk_data:

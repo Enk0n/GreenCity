@@ -1,0 +1,55 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      load:
+      network:
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 256
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+exporters:
+  # Export Prometheus
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: "greencity"
+
+  # Export Splunk HEC
+  splunk_hec:
+    token: "00000000-0000-0000-0000-000000000000"
+    endpoint: "https://splunk:8088/services/collector"
+    source: "greencity:otel"
+    sourcetype: "otel:log"
+    index: "main"
+    tls:
+      insecure_skip_verify: true
+
+  # Local debug exporter
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [splunk_hec, debug]
