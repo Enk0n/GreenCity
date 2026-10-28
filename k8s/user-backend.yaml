@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greencity-user
+  namespace: greencity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: greencity-user
+  template:
+    metadata:
+      labels:
+        app: greencity-user
+    spec:
+      containers:
+        - name: user-backend
+          image: greencity-backuser:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8060
+          env:
+            - name: DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/greencity"
+            - name: DATASOURCE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/greencity"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+            - name: EMAIL_ADDRESS
+              value: "greencity.dev@gmail.com"
+            - name: EMAIL_PASSWORD
+              value: "mock_password123"
+
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx350m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: greencity-user-service
+  namespace: greencity
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8060
+      targetPort: 8060
+  selector:
+    app: greencity-user

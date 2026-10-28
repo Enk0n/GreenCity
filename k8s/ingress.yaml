@@ -1,0 +1,126 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: greencity-ingress
+  namespace: greencity
+  annotations:
+    ingress.class: traefik
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /user
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-user-service
+                port:
+                  number: 8060
+          - path: /ownSecurity
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-user-service
+                port:
+                  number: 8060
+          - path: /googleSecurity
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-user-service
+                port:
+                  number: 8060
+
+          - path: /swagger-ui
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /v3/api-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+
+          - path: /tags
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /econews
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /habit
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /search
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /events
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /favorite_place
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /place
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /category
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /custom
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+          - path: /files
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-backend-service
+                port:
+                  number: 8080
+
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: greencity-frontend-service
+                port:
+                  number: 80

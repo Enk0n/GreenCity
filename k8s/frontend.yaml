@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greencity-frontend
+  namespace: greencity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: greencity-frontend
+  template:
+    metadata:
+      labels:
+        app: greencity-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: greencity-frontend:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "150m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: greencity-frontend-service
+  namespace: greencity
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: greencity-frontend
