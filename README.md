@@ -1,194 +1,147 @@
-# GreenCity Infrastructure Automation (Ansible)
+# GreenCity: Cloud Infrastructure & Kubernetes Deployment
 
-Automated provisioning and multi-tier deployment of the **GreenCity** platform across Oracle Linux 9.8 virtual machines using modular Ansible roles.
+This repository contains the Infrastructure as Code (IaC) and Kubernetes manifests required to deploy the GreenCity microservices application on AWS. 
 
----
+The project utilizes **Terraform** for cloud resource provisioning and **k3s** (a lightweight Kubernetes distribution) for container orchestration.
 
-## 1. Architecture Overview
+## Architecture Overview
 
-The infrastructure decouples the persistence layer from the application container runtime:
-
-* **Database Tier (`greencity-db`)**: Dedicated VM running standalone PostgreSQL 15, bound to local network interfaces with configured firewall and client authentication.
-* **Application Tier (`greencity-app`)**: Dedicated VM running Docker Engine and Docker Compose, pulling the application repository, injecting `.env` configurations, and serving HTTP traffic.
-
-### Target Node Topology
-
-| Hostname | Role | OS | IP Address / Interface | Ports |
-| :--- | :--- | :--- | :--- | :--- |
-| `greencity-db` | Database Server | Oracle Linux 9.8 | Static (`192.168.0.134`) | `5432/tcp` |
-| `greencity-app` | Application Server | Oracle Linux 9.8 | Dynamic / DHCP (`192.168.0.228`) | `80/tcp`, `8080/tcp` |
+* **Cloud Provider:** AWS (eu-central-1)
+* **Infrastructure:** EC2 (`t2.micro`), VPC, Public Subnet, Security Groups (Ports 22, 80, 443).
+* **Orchestration:** k3s (Kubernetes) with Traefik Ingress Controller.
+* **Storage:** AWS EBS with a Kubernetes PersistentVolumeClaim (PVC) for database durability.
+* **Microservices:**
+  * **PostgreSQL:** Relational database handling both Core and User schemas.
+  * **Core Backend (`greencity-backend`):** Java Spring Boot API (Port 8080).
+  * **User Backend (`greencity-user`):** Java Spring Boot Auth/User API (Port 8060).
+  * **Frontend (`greencity-frontend`):** Angular application served via Nginx (Port 80).
 
 ---
 
-## 2. Directory Structure
+## Step 1: Infrastructure Provisioning (Terraform)
 
-The Ansible codebase follows the standard role-based layout:
+The foundational cloud infrastructure is managed via Terraform to ensure reproducibility.
 
-```text
-ansible/
-├── ansible.cfg                # Engine configurations & connection parameters
-├── inventory.ini              # Host grouping and per-node variables
-├── site.yml                   # Master orchestration playbook
-├── group_vars/
-│   ├── all.yml                # Universal configurations (SELinux mode)
-│   ├── db_servers.yml         # PostgreSQL ports, credentials, network bindings
-│   └── app_servers.yml        # Git branch, repo URL, paths, exposed HTTP ports
-└── roles/
-    ├── common/                # OS-level baseline (SELinux, firewalld)
-    │   └── tasks/main.yml
-    ├── postgresql/            # DB installation, templates, handlers, user/db creation
-    │   ├── tasks/main.yml
-    │   ├── handlers/main.yml
-    │   └── templates/
-    │       └── pg_hba.conf.j2
-    ├── docker/                # Official Docker CE repo setup & engine installation
-    │   └── tasks/main.yml
-    └── app/                   # Code checkout, .env templating, compose execution
-        ├── tasks/main.yml
-        └── templates/
-            └── env.j2
-```
+1. **Initialize and Apply Terraform:**
 
----
-
-## 3. Prerequisites
-
-* **Control Node**:
-  * Linux / WSL environment.
-  * Ansible core installed (`ansible >= 2.14`).
-  * Python 3 and `sshpass` (for password-based authentication).
-* **Managed Nodes**:
-  * 2x Oracle Linux 9.8 instances reachable via SSH.
-  * Sudo/root access enabled for the management users.
-
----
-
-## 4. Configuration Setup
-
-### Step 1: Inventory Definition (`inventory.ini`)
-
-Assign hostnames, target IP addresses, and SSH users to respective groups:
-
-```ini
-[db_servers]
-greencity-db ansible_host=192.168.0.134 ansible_user=greencity-db
-
-[app_servers]
-greencity-app ansible_host=192.168.0.228 ansible_user=greencity-app
-
-[all:vars]
-ansible_python_interpreter=/usr/bin/python3
-ansible_become=yes
-```
-
-### Step 2: Parameterization (`group_vars/`)
-
-* **`group_vars/all.yml`**:
-  ```yaml
-  ---
-  selinux_mode: permissive
-  ```
-
-* **`group_vars/db_servers.yml`**:
-  ```yaml
-  ---
-  db_name: "greencity"
-  db_user: "greencity"
-  db_pass: "greencity_pass"
-  db_port: 5432
-  listen_addresses: "*"
-  ```
-
-* **`group_vars/app_servers.yml`**:
-  ```yaml
-  ---
-  app_repo_url: "https://github.com/Enk0n/GreenCity.git"
-  app_repo_branch: "docker-dockercompose"
-  app_dest_dir: "/home/{{ ansible_user }}/GreenCity"
-
-  app_http_ports:
-    - "80/tcp"
-    - "8080/tcp"
-
-  datasource_url: "jdbc:postgresql://192.168.0.134:5432/greencity"
-  datasource_user: "greencity"
-  datasource_password: "greencity_pass"
-  ```
-
----
-
-## 5. Deployment Execution
-
-### Step 1: Verify Host Reachability
-
-Test connection and authentication to all nodes:
-
-```bash
-ansible all -i inventory.ini -m ping --ask-pass --ask-become-pass
-```
-
-### Step 2: Execute Syntax Validation
-
-Ensure all YAML tasks, handlers, and templates parse correctly:
-
-```bash
-ansible-playbook -i inventory.ini site.yml --syntax-check
-```
-
-### Step 3: Run Orchestration Playbook
-
-Deploy the complete infrastructure stack:
-
-```bash
-ansible-playbook -i inventory.ini site.yml --ask-pass --ask-become-pass
-```
-
----
-
-## 6. Role Breakdown
-
-1. **`common`**:
-   * Sets SELinux to `permissive` mode to avoid unconfined container and socket blocking.
-   * Enables and activates `firewalld`.
-
-2. **`postgresql`**:
-   * Installs PostgreSQL 15 and `python3-psycopg2` module dependencies.
-   * Initializes cluster data directory on initial run.
-   * Sets `listen_addresses = '*'` in `postgresql.conf`.
-   * Deploys `pg_hba.conf` template granting `md5` remote network access.
-   * Opens firewall port `5432/tcp`.
-   * Creates the `greencity` database and dedicated application credentials.
-
-3. **`docker`**:
-   * Registers upstream Docker CE repository on RHEL/CentOS family.
-   * Installs Docker Engine, CLI, Containerd, and Compose plugins.
-   * Ensures the system service is active and appends the operational user to the `docker` security group.
-
-4. **`app`**:
-   * Opens inbound firewall ports `80/tcp` and `8080/tcp`.
-   * Enforces recursive file ownership on destination paths.
-   * Pulls the repository from the target branch.
-   * Dynamically renders the application `.env` file via Jinja2 (`env.j2`).
-   * Executes `docker compose up -d --build` non-interactively.
-
----
-
-## 7. Verification & Testing
-
-Verify end-to-end functionality following deployment:
-
-1. **Database Listener Check**:
    ```bash
-   nc -zv 192.168.0.134 5432
+   cd terraform
+   terraform init
+   terraform apply -auto-approve
    ```
 
-2. **Container State**:
+2. **Resource Constraints & SWAP File:**
+   Since the deployment targets an AWS Free Tier `t2.micro` instance (1 GB RAM), running two heavy Java Spring Boot applications alongside PostgreSQL and k3s would immediately result in `OOMKilled` errors. To resolve this, a **4 GB SWAP file** is configured on the EC2 instance:
+
    ```bash
-   ssh greencity-app@192.168.0.228 "docker compose -f /home/greencity-app/GreenCity/app/docker-compose.yml ps"
+   sudo fallocate -l 4G /swapfile
+   sudo chmod 600 /swapfile
+   sudo mkswap /swapfile
+   sudo swapon /swapfile
    ```
 
-3. **HTTP Web Interface**:
+## Step 2: Kubernetes Cluster Setup (k3s)
+
+1. **Install k3s:**
+
    ```bash
-   curl -I [http://192.168.0.228](http://192.168.0.228)
+   curl -sfL https://get.k3s.io | sh -
    ```
-   *Expected Response:* `HTTP/1.1 200 OK` (or reverse proxy redirection).
+
+2. **Configure Namespace:**
+
+   ```bash
+   kubectl create namespace greencity
+   ```
+
+3. **Local Image Registry Bypass:**
+   To avoid pushing heavy proprietary images to a public Docker Hub, images were exported as `.tar` archives and directly imported into the k3s `containerd` runtime:
+
+   ```bash
+   sudo k3s ctr images import greencity-frontend.tar
+   sudo k3s ctr images import greencity-backcore.tar
+   sudo k3s ctr images import greencity-backuser.tar
+   ```
+
+## Step 3: Application Deployment
+
+All Kubernetes manifests are located in the `k8s/` directory. Deploy them sequentially:
+
+1. **Database Layer:**
+
+   ```bash
+   kubectl apply -f k8s/postgres.yaml
+   ```
+
+   *Includes a PVC to ensure data survives pod restarts.*
+
+2. **Backend Services:**
+
+   ```bash
+   kubectl apply -f k8s/backend.yaml
+   kubectl apply -f k8s/user-backend.yaml
+   ```
+
+   *Note: Environment variables for Azure Blob Storage and SMTP were replaced with mock credentials (`dummykey`, `mock_password123`) to prevent secret exposure in version control while allowing Spring context to initialize successfully.*
+
+3. **Frontend & Ingress Routing:**
+
+   ```bash
+   kubectl apply -f k8s/frontend.yaml
+   kubectl apply -f k8s/ingress.yaml
+   ```
+
+   *Traefik is configured to route `/user`, `/ownSecurity`, and `/googleSecurity` to the User API (8060), various endpoints like `/tags` and `/econews` to the Core API (8080), and the root path `/` to the Nginx Frontend.*
+
+---
+
+## Step 4: Troubleshooting & Hotfixes
+
+During the integration phase, several critical issues were identified and resolved on the fly:
+
+### 1. Frontend API Call Redirection (The `localhost` Bug)
+
+**Issue:** The compiled Angular static assets had hardcoded API URLs pointing to `http://localhost:8080` and `http://localhost:8060`, causing CORS and connection refused errors in the browser.
+
+**Solution:** Executed an in-container text replacement (`sed`) to update the compiled JS bundles with the public EC2 IP address without rebuilding the Docker image.
+
+   ```bash
+   kubectl exec -it -n greencity deployment/greencity-frontend -- /bin/sh -c '
+     sed -i "s|http://localhost:8060|http://<EC2_PUBLIC_IP>|g" /usr/share/nginx/html/main*.js
+     sed -i "s|http://localhost:8080|http://<EC2_PUBLIC_IP>|g" /usr/share/nginx/html/main*.js
+   '
+   ```
+
+### 2. Bypassing Email Verification (Auth Block)
+
+**Issue:** Because mock SMTP credentials were provided, the backend could not send activation emails. New users were created in the database but were stuck in a `DEACTIVATED` state with pending tokens in the `verify_emails` table, resulting in `400 Bad Request` upon login.
+
+**Solution:** Manually verified the latest registered user directly via the PostgreSQL pod:
+
+   ```bash
+   # Remove pending email verification lock
+   kubectl exec -n greencity deployment/postgres -- psql -U greencity -d greencity -c "DELETE FROM verify_emails WHERE user_id = (SELECT max(id) FROM users);"
+
+   # Activate user account
+   kubectl exec -n greencity deployment/postgres -- psql -U greencity -d greencity -c "UPDATE users SET user_status = 1 WHERE id = (SELECT max(id) FROM users);"
+   ```
+
+### 3. Git Push Protection & Secret Management
+
+**Issue:** GitHub blocked the push due to large file limits (`.tar` files) and detected secrets (Azure Storage Keys in `backend.yaml`).
+
+**Solution:** 
+
+* Added `*.tar` to `.gitignore` and removed them from the commit.
+* Replaced actual Azure keys with `dummykey` placeholders.
+* Rewrote the commit history using `git commit --amend` to ensure no secrets were leaked in the repository history.
+
+---
+
+## Cost Management (AWS Free Tier)
+
+To avoid incurring charges when the environment is not actively being tested, stop the EC2 instance. EBS storage will persist the database and k3s state.
+
+   ```bash
+   aws ec2 stop-instances --instance-ids <YOUR_INSTANCE_ID> --region eu-central-1
+   ```
