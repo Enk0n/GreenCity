@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greencity-mcp
+  namespace: greencity
+  labels:
+    app: greencity-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: greencity-mcp
+  template:
+    metadata:
+      labels:
+        app: greencity-mcp
+    spec:
+      imagePullSecrets:
+        - name: ecr-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp
+          image: 054394900199.dkr.ecr.eu-central-1.amazonaws.com/greencity-mcp:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: mcp-sse
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_NAME
+              value: "greencity"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: greencity-mcp-service
+  namespace: greencity
+spec:
+  type: ClusterIP
+  selector:
+    app: greencity-mcp
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http-sse
