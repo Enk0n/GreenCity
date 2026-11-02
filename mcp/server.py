@@ -26,7 +26,7 @@ def get_events(limit: int = 10) -> str:
         conn.close()
 
         if not events:
-            return "Events not found"
+            return "Events not found - CI/CD test successful!"
 
         result = "Last events: \n"
         for evt in events:
