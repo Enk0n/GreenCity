@@ -1,10 +1,10 @@
 import os
 import psycopg2
-from mcp. server. fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("GreenCity MCP")
-mcp.settings.host="0.0.0.0"
-mcp.settings.port=8000
+mcp.settings.host = "0.0.0.0"
+mcp.settings.port = 8000
 
 def get_db_connection():
     return psycopg2.connect(
@@ -25,15 +25,16 @@ def get_events(limit: int = 10) -> str:
         cur.close()
         conn.close()
 
-if not events:
-return "Events not found"
+        if not events:
+            return "Events not found"
 
-result = "Last events: \n"
-for evt in events:
-result += f"- {tbl[o]}\n"
-return result
-except Exception as e:
-return f"Database error: {str(e)}"
+        result = "Last events: \n"
+        for evt in events:
+            result += f"- {evt[0]}\n"
+        return result
 
-if __ name __==
-mcp.run(transport='sse')
+    except Exception as e:
+        return f"Database error: {str(e)}"
+
+if __name__ == "__main__":
+    mcp.run(transport='sse')
