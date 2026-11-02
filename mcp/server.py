@@ -16,14 +16,14 @@ def get_db_connection():
 
 @mcp.tool()
 def get_events(limit: int = 10) -> str:
-"""Return list of last events from database GreenCity"""
-try:
-conn = get_db_connection()
-cur = conn. cursor()
-cur.execute("SELECT id, title, status FROM events ORDER BY created_at DESC LIMIT %s;", (limit,))
-events = cur.fetchall()
-cur.close()
-conn.close()
+    """Return list of last events from database GreenCity"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, title, status FROM events ORDER BY created_at DESC LIMIT %s;", (limit,))
+        events = cur.fetchall()
+        cur.close()
+        conn.close()
 
 if not events:
 return "Events not found"
