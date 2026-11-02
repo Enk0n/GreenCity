@@ -15,10 +15,25 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: greencity-frontend:local
+          image: 054394900199.dkr.ecr.eu-central-1.amazonaws.com/greencity-frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    find /usr/share/nginx/html -type f -name "*.js" -exec sed -i \
+                      "s|http://localhost:8080|https://18.197.104.174|g; \
+                       s|http://localhost:8060|https://18.197.104.174|g; \
+                       s|http://63.177.238.5|https://18.197.104.174|g; \
+                       s|https://63.177.238.5|https://18.197.104.174|g; \
+                       s|http://18.197.104.174:8080|https://18.197.104.174|g; \
+                       s|http://18.197.104.174:8060|https://18.197.104.174|g; \
+                       s|http://18.197.104.174|https://18.197.104.174|g" {} +
           resources:
             requests:
               memory: "64Mi"

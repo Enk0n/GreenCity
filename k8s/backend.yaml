@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: greencity-backcore:local
+          image: 054394900199.dkr.ecr.eu-central-1.amazonaws.com/greencity-backcore:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
