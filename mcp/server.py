@@ -7,13 +7,12 @@ mcp.settings.host="0.0.0.0"
 mcp.settings.port=8000
 
 def get_db_connection():
-return psycopg2. connect(
-dbname=os.environ.get("DB_NAME", "greencity"),
-user=os.environ.get("DB_USER", "postgres"),
-password=os.environ.get("DB_PASSWORD", "postgres"),
-host=os.environ.get("DB_HOST", "postgres.greencity. svc. cluster. local")
-
-server.
+    return psycopg2.connect(
+        dbname=os.environ.get("DB_NAME", "greencity"),
+        user=os.environ.get("DB_USER", "postgres"),
+        password=os.environ.get("DB_PASSWORD", "postgres"),
+        host=os.environ.get("DB_HOST", "postgres.greencity.svc.cluster.local")
+    )
 
 @mcp.tool()
 def get_events(limit: int = 10) -> str:
