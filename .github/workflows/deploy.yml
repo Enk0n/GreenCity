@@ -9,9 +9,22 @@ on:
 permissions:
   id-token: write
   contents: read
+    permissions:
+      id-token: write
+      contents: read
+    permissions:
+      id-token: write
+      contents: read
+ runs-on: ubuntu-latest
 
 jobs:
   build-and-push:
+    permissions:
+      id-token: write
+      contents: read
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
